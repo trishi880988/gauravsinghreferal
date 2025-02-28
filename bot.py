@@ -67,8 +67,8 @@ def start(update: Update, context: CallbackContext) -> None:
 
     # Channels ke buttons
     keyboard = [
-        [InlineKeyboardButton("Channel 1", url="https://t.me/Channel1")],
-        [InlineKeyboardButton("Channel 2", url="https://t.me/Channel2")]
+        [InlineKeyboardButton("Channel 1", url="https://t.me/skillcoursesfree")],
+        [InlineKeyboardButton("Channel 2", url="https://t.me/skillwithgaurav")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
