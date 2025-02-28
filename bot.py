@@ -2,7 +2,7 @@ import os
 import logging
 from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
+from telegram.ext import Updater, CommandHandler, CallbackContext
 
 # Bot Token (Environment variable se lena hoga)
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -11,7 +11,7 @@ TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 MONGO_URI = os.getenv('MONGO_URI')
 
 # Premium group invite link (Environment variable se lena hoga)
-PREMIUM_LINK = os.getenv('PREMIUM_LINK')
+PREMIUM_LINK = os.getenv('https://t.me/+ZvQhHzGFBS80NjJl')
 
 # Logging setup
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -29,17 +29,20 @@ def add_user(user_id, referer_id=None):
         users_collection.insert_one({
             "user_id": user_id,
             "referer_id": referer_id,
-            "referal_count": 0
+            "referal_count": 0,
+            "referred_users": []  # Track referred users to avoid duplicate counts
         })
 
-# Update referal count
-def update_referal_count(referer_id):
-    users_collection.update_one(
-        {"user_id": referer_id},
-        {"$inc": {"referal_count": 1}}
-    )
+# Update referral count
+def update_referal_count(referer_id, new_user_id):
+    referer = users_collection.find_one({"user_id": referer_id})
+    if referer and new_user_id not in referer.get("referred_users", []):
+        users_collection.update_one(
+            {"user_id": referer_id},
+            {"$inc": {"referal_count": 1}, "$push": {"referred_users": new_user_id}}
+        )
 
-# Get referal count
+# Get referral count
 def get_referal_count(user_id):
     user = users_collection.find_one({"user_id": user_id})
     return user.get("referal_count", 0) if user else 0
@@ -49,11 +52,11 @@ def start(update: Update, context: CallbackContext) -> None:
     user = update.message.from_user
     args = context.args
 
-    # Check if user is coming from a referal link
     if args and args[0].isdigit():
         referer_id = int(args[0])
-        add_user(user.id, referer_id)
-        update_referal_count(referer_id)
+        if referer_id != user.id:  # Self-referral prevention
+            add_user(user.id, referer_id)
+            update_referal_count(referer_id, user.id)
     else:
         add_user(user.id)
 
@@ -61,28 +64,27 @@ def start(update: Update, context: CallbackContext) -> None:
     referal_count = get_referal_count(user.id)
 
     message = (
-        f"Namaste {user.first_name}!\n\n"
-        "5+ Premium Courses ko unlock karne ke liye, apne referal link ko 10 logo ke sath share karein:\n\n"
-        f"📌 Apna Referal Link: {referal_link}\n\n"
-        f"✅ Abhi tak {referal_count} logo ne apka link use kiya hai.\n\n"
+        f"\U0001F44B Namaste {user.first_name}!\n\n"
+        "\U0001F4A1 5+ Premium Courses unlock karne ke liye, apne referral link ko 10 logo ke sath share karein:\n\n"
+        f"\U0001F517 Apka Referral Link: {referal_link}\n\n"
+        f"✅ Aapke {referal_count} valid referrals ho chuke hain.\n\n"
         "Aur niche diye gaye channels mein bhi join karein:"
     )
 
     # Channels ke buttons
     keyboard = [
-        [InlineKeyboardButton("Channel 1", url="https://t.me/skillcoursesfree")],
-        [InlineKeyboardButton("Channel 2", url="https://t.me/skillwithgaurav")]
+        [InlineKeyboardButton("\U0001F4E2 Channel 1", url="https://t.me/skillcoursesfree")],
+        [InlineKeyboardButton("\U0001F4E2 Channel 2", url="https://t.me/skillwithgaurav")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     update.message.reply_text(message, reply_markup=reply_markup)
 
-    # Check if user has 10+ referals
     if referal_count >= 10:
         premium_message = (
-            "Congratulations! 🎉 Aapne 10+ logo ko apna referal link share kiya hai.\n\n"
-            "Yeh raha aapka premium group ka invite link:\n\n"
-            f"👉 {https://t.me/+ZvQhHzGFBS80NjJl}"
+            "\U0001F389 Congratulations! Aapne 10+ logo ko invite kar diya hai.\n\n"
+            "\U0001F449 Yeh raha aapka premium group ka invite link:\n\n"
+            f"🔗 {https://t.me/+ZvQhHzGFBS80NjJl}"
         )
         update.message.reply_text(premium_message)
 
@@ -95,13 +97,9 @@ def main() -> None:
     updater = Updater(TOKEN)
     dispatcher = updater.dispatcher
 
-    # Command handlers
     dispatcher.add_handler(CommandHandler("start", start))
-
-    # Error handler
     dispatcher.add_error_handler(error)
 
-    # Start the Bot
     updater.start_polling()
     updater.idle()
 
