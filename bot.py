@@ -10,6 +10,9 @@ TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 # MongoDB connection string (Environment variable se lena hoga)
 MONGO_URI = os.getenv('MONGO_URI')
 
+# Premium group invite link (Environment variable se lena hoga)
+PREMIUM_LINK = os.getenv('PREMIUM_LINK')
+
 # Logging setup
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -76,12 +79,12 @@ def start(update: Update, context: CallbackContext) -> None:
 
     # Check if user has 10+ referals
     if referal_count >= 10:
-        update.message.reply_text(
+        premium_message = (
             "Congratulations! 🎉 Aapne 10+ logo ko apna referal link share kiya hai.\n\n"
-            "Aapko ab premium group mein add kiya ja raha hai."
+            "Yeh raha aapka premium group ka invite link:\n\n"
+            f"👉 {https://t.me/+ZvQhHzGFBS80NjJl}"
         )
-        # Add user to premium group (Replace YOUR_PREMIUM_GROUP_ID with actual group ID)
-        context.bot.send_message(chat_id=YOUR_PREMIUM_GROUP_ID, text=f"New member joined: {user.first_name}")
+        update.message.reply_text(premium_message)
 
 # Error handling
 def error(update: Update, context: CallbackContext) -> None:
