@@ -2,7 +2,7 @@ import os
 import logging
 from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, CallbackQueryHandler
 
 # Environment Variables
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
