@@ -8,7 +8,12 @@ import requests
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 MONGO_URI = os.getenv('MONGO_URI')
 PREMIUM_LINK = os.getenv('PREMIUM_GROUP_LINK')
-CHANNELS = ["@skillwithgaurav", "@skillcoursesfree"]
+
+# Add your channel IDs here (not usernames)
+CHANNELS = [
+    -1002390829801,  # Replace with your first channel ID
+    -1002364162931   # Replace with your second channel ID
+]
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,8 +23,8 @@ db = client.referral_bot
 users_collection = db.users
 
 def is_user_joined(user_id):
-    for channel in CHANNELS:
-        url = f"https://api.telegram.org/bot{TOKEN}/getChatMember?chat_id={channel}&user_id={user_id}"
+    for channel_id in CHANNELS:
+        url = f"https://api.telegram.org/bot{TOKEN}/getChatMember?chat_id={channel_id}&user_id={user_id}"
         response = requests.get(url).json()
         if response.get("ok") and response["result"]["status"] not in ["member", "administrator", "creator"]:
             return False
@@ -56,9 +61,9 @@ async def start(update: Update, context: CallbackContext):
     user_id = user.id
 
     if not is_user_joined(user_id):
-        keyboard = [[InlineKeyboardButton(f"📌 Join {channel}", url=f"https://t.me/{channel[1:]}") for channel in CHANNELS],
+        keyboard = [[InlineKeyboardButton(f"📌 Join Channel {i+1}", url=f"https://t.me/c/{str(CHANNELS[i])[4:]}") for i in range(len(CHANNELS))],
                     [InlineKeyboardButton("✅ Joined!", callback_data="check_join")]]
-        await update.message.reply_text("⚠️ Pehle niche diye gaye channels ko join karein!", reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text("⚠️ Please join the following channels to use the bot:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     args = context.args
@@ -74,12 +79,15 @@ async def start(update: Update, context: CallbackContext):
     referral_link = f"https://t.me/{context.bot.username}?start={user_id}"
     progress_bar = create_progress_bar(referral_count)
 
-    message = f"👋 Namaste {user.first_name}!\n🌟 Earn Premium Access!\n🔗 Your Referral Link: [{referral_link}]({referral_link})\n📊 Progress: {progress_bar} ({referral_count}/4)"
-    keyboard = [[InlineKeyboardButton("✅ Check Referrals", callback_data="check_referrals")]]
+    message = f"👋 Hello *{user.first_name}*!\n\n🌟 *Earn Premium Access!*\n\n🔗 *Your Referral Link:* [{referral_link}]({referral_link})\n\n📊 *Progress:* {progress_bar} ({referral_count}/4)"
+    keyboard = [
+        [InlineKeyboardButton("✅ Check Referrals", callback_data="check_referrals")],
+        [InlineKeyboardButton("📤 Share Referral Link", url=f"https://t.me/share/url?url={referral_link}")]
+    ]
     
     await update.message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
     if referral_count >= 4:
-        await update.message.reply_text("🎉 Congrats! Join Premium:", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Join Premium", url=PREMIUM_LINK)]]))
+        await update.message.reply_text("🎉 Congratulations! You've unlocked Premium Access:", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Join Premium", url=PREMIUM_LINK)]]))
 
 async def button_click(update: Update, context: CallbackContext):
     query = update.callback_query
@@ -89,7 +97,7 @@ async def button_click(update: Update, context: CallbackContext):
         if is_user_joined(user_id):
             await query.message.reply_text("✅ Thank you for joining! Now use /start to continue.")
         else:
-            await query.message.reply_text("⚠️ Pehle dono channels ko join karein!")
+            await query.message.reply_text("⚠️ Please join both channels to proceed!")
     elif query.data == "check_referrals":
         referral_count = get_referral_count(user_id)
         progress_bar = create_progress_bar(referral_count)
