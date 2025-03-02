@@ -65,7 +65,7 @@ async def start(update: Update, context: CallbackContext):
     user_id = user.id
 
     if not is_user_joined(user_id):
-        keyboard = [[InlineKeyboardButton(f"📌 Join Channel {i+1}", url=f"https://t.me/c/{str(CHANNELS[i])[4:]}") for i in range(len(CHANNELS))],
+        keyboard = [[InlineKeyboardButton(f"📌 Join Channel {i+1}", url=f"https://t.me/{str(CHANNELS[i])}") for i in range(len(CHANNELS))],
                     [InlineKeyboardButton("✅ Joined!", callback_data="check_join")]]
         await update.message.reply_text("⚠️ Please join the following channels to use the bot:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
