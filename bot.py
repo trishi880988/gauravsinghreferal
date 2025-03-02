@@ -90,8 +90,13 @@ def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(message, reply_markup=reply_markup, parse_mode="Markdown")
 
     if referral_count >= 4:
+        premium_keyboard = [
+            [InlineKeyboardButton("🎉 Join Premium Group", url=PREMIUM_LINK)]
+        ]
+        premium_reply_markup = InlineKeyboardMarkup(premium_keyboard)
         update.message.reply_text(
-            f"🎉 **Congratulations!** Aapne 4 referrals complete kar liye hain. Yeh raha **Premium Group** ka link: {PREMIUM_LINK}"
+            "🎉 Congratulations! Aapne 4 referrals complete kar liye hain. Neeche diye gaye button se premium group join karein:",
+            reply_markup=premium_reply_markup
         )
 
 # Callback Query Handler
