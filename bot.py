@@ -1,8 +1,8 @@
 import os
 import logging
 from pymongo import MongoClient
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext, MessageHandler, filters, CallbackQueryHandler
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext, CallbackQueryHandler
 import requests
 
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -107,7 +107,13 @@ async def button_click(update: Update, context: CallbackContext):
     elif query.data == "check_referrals":
         referral_count = get_referral_count(user_id)
         progress_bar = create_progress_bar(referral_count)
-        await query.edit_message_text(text=f"📊 Your Progress: {progress_bar} ({referral_count}/10)", parse_mode="Markdown")
+        try:
+            # Try to edit the original message
+            await query.edit_message_text(text=f"📊 Your Progress: {progress_bar} ({referral_count}/10)", parse_mode="Markdown")
+        except Exception as e:
+            # If editing fails, send a new message
+            logger.error(f"Failed to edit message: {e}")
+            await query.message.reply_text(f"📊 Your Progress: {progress_bar} ({referral_count}/10)", parse_mode="Markdown")
 
 def main():
     application = ApplicationBuilder().token(TOKEN).build()
