@@ -2,20 +2,17 @@ import os
 import logging
 from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext, MessageHandler, filters, CallbackQueryHandler
 import requests
 
-# Environment Variables
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 MONGO_URI = os.getenv('MONGO_URI')
 PREMIUM_LINK = os.getenv('PREMIUM_GROUP_LINK')
-CHANNELS = ["@skillwithgaurav", "@skillcoursesfree"]  # Force join channels
+CHANNELS = ["@skillwithgaurav", "@skillcoursesfree"]
 
-# Logging Setup
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# MongoDB Setup
 client = MongoClient(MONGO_URI)
 db = client.referral_bot
 users_collection = db.users
@@ -54,14 +51,14 @@ def get_referral_count(user_id):
 def create_progress_bar(count, total=4):
     return "🟩" * count + "⬜" * (total - count)
 
-def start(update: Update, context: CallbackContext):
+async def start(update: Update, context: CallbackContext):
     user = update.message.from_user
     user_id = user.id
 
     if not is_user_joined(user_id):
         keyboard = [[InlineKeyboardButton(f"📌 Join {channel}", url=f"https://t.me/{channel[1:]}") for channel in CHANNELS],
                     [InlineKeyboardButton("✅ Joined!", callback_data="check_join")]]
-        update.message.reply_text("⚠️ Pehle niche diye gaye channels ko join karein!", reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text("⚠️ Pehle niche diye gaye channels ko join karein!", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     args = context.args
@@ -79,32 +76,30 @@ def start(update: Update, context: CallbackContext):
 
     message = f"👋 Namaste {user.first_name}!\n🌟 Earn Premium Access!\n🔗 Your Referral Link: [{referral_link}]({referral_link})\n📊 Progress: {progress_bar} ({referral_count}/4)"
     keyboard = [[InlineKeyboardButton("✅ Check Referrals", callback_data="check_referrals")]]
-
-    update.message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    
+    await update.message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
     if referral_count >= 4:
-        update.message.reply_text("🎉 Congrats! Join Premium:", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Join Premium", url=PREMIUM_LINK)]]))
+        await update.message.reply_text("🎉 Congrats! Join Premium:", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Join Premium", url=PREMIUM_LINK)]]))
 
-def button_click(update: Update, context: CallbackContext):
+async def button_click(update: Update, context: CallbackContext):
     query = update.callback_query
     user_id = query.from_user.id
     
     if query.data == "check_join":
         if is_user_joined(user_id):
-            query.message.reply_text("✅ Thank you for joining! Now use /start to continue.")
+            await query.message.reply_text("✅ Thank you for joining! Now use /start to continue.")
         else:
-            query.message.reply_text("⚠️ Pehle dono channels ko join karein!")
+            await query.message.reply_text("⚠️ Pehle dono channels ko join karein!")
     elif query.data == "check_referrals":
         referral_count = get_referral_count(user_id)
         progress_bar = create_progress_bar(referral_count)
-        query.edit_message_text(text=f"📊 Your Progress: {progress_bar} ({referral_count}/4)", parse_mode="Markdown")
+        await query.edit_message_text(text=f"📊 Your Progress: {progress_bar} ({referral_count}/4)", parse_mode="Markdown")
 
 def main():
-    updater = Updater(TOKEN)
-    dispatcher = updater.dispatcher
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CallbackQueryHandler(button_click))
-    updater.start_polling()
-    updater.idle()
+    application = ApplicationBuilder().token(TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(button_click))
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
