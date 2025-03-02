@@ -9,11 +9,9 @@ TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 MONGO_URI = os.getenv('MONGO_URI')
 PREMIUM_LINK = os.getenv('PREMIUM_GROUP_LINK')
 
-# Add your channel IDs here (not usernames)
-CHANNELS = [
-    -1002390829801,  # Replace with your first channel ID
-    -1002364162931   # Replace with your second channel ID
-]
+# Load channel IDs from environment variables
+CHANNELS = os.getenv('CHANNEL_IDS', '').split(',')
+CHANNELS = [int(channel_id.strip()) for channel_id in CHANNELS if channel_id.strip()]
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -86,6 +84,11 @@ async def start(update: Update, context: CallbackContext):
     ]
     
     await update.message.reply_text(message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+    # Debugging: Log referral count
+    logger.info(f"Referral count for user {user_id}: {referral_count}")
+
+    # Check if referral count is 4 or more
     if referral_count >= 4:
         await update.message.reply_text("🎉 Congratulations! You've unlocked Premium Access:", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Join Premium", url=PREMIUM_LINK)]]))
 
