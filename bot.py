@@ -1,9 +1,9 @@
 import os
 import logging
+import requests
 from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext, CallbackQueryHandler
-import requests
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -13,7 +13,7 @@ TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 MONGO_URI = os.getenv('MONGO_URI')
 PREMIUM_LINK = os.getenv('PREMIUM_GROUP_LINK')
 
-# Load channel IDs from environment variables
+# Load channel IDs
 CHANNELS = os.getenv('CHANNEL_IDS', '').split(',')
 CHANNELS = [int(channel_id.strip()) for channel_id in CHANNELS if channel_id.strip()]
 
@@ -29,12 +29,12 @@ def is_user_joined(user_id):
     for channel_id in CHANNELS:
         url = f"https://api.telegram.org/bot{TOKEN}/getChatMember?chat_id={channel_id}&user_id={user_id}"
         response = requests.get(url).json()
-        if response.get("ok") and response["result"]["status"] not in ["member", "administrator", "creator"]:
+        if not response.get("ok") or response["result"]["status"] not in ["member", "administrator", "creator"]:
             return False
     return True
 
 def add_user(user_id, referer_id=None, context=None):
-    """Add user to the database and update referral count if applicable."""
+    """Add user to database and update referral count if applicable."""
     user = users_collection.find_one({"user_id": user_id})
     if not user:
         users_collection.insert_one({
@@ -56,7 +56,7 @@ def update_referral_count(referer_id, new_user_id, context):
             {"$inc": {"referral_count": 1}, "$push": {"referred_users": new_user_id}}
         )
         context.bot.send_message(chat_id=referer_id, text=f"🎉 New Referral! Total: {new_count}/10")
-        
+
         # If user has completed 10 referrals, send premium link
         if new_count >= 10:
             context.bot.send_message(chat_id=referer_id, text="🎉 Congratulations! You've unlocked Free Premium Courses:",
@@ -76,9 +76,9 @@ async def start(update: Update, context: CallbackContext):
     user = update.message.from_user
     user_id = user.id
 
-    # Check if the user joined via a referral link
+    # Extract referral ID if exists
     args = context.args
-    referer_id = int(args[0]) if args else None
+    referer_id = int(args[0]) if args and args[0].isdigit() else None
     if referer_id == user_id:
         referer_id = None  # Prevent self-referral
 
@@ -130,10 +130,8 @@ async def button_click(update: Update, context: CallbackContext):
         referral_count = get_referral_count(user_id)
         progress_bar = create_progress_bar(referral_count)
         try:
-            # Try to edit the original message
             await query.edit_message_text(text=f"📊 Your Progress: {progress_bar} ({referral_count}/10)", parse_mode="Markdown")
         except Exception as e:
-            # If editing fails, send a new message
             logger.error(f"Failed to edit message: {e}")
             await query.message.reply_text(f"📊 Your Progress: {progress_bar} ({referral_count}/10)", parse_mode="Markdown")
 
@@ -146,3 +144,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
