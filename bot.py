@@ -4,6 +4,10 @@ from pymongo import MongoClient
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext, CallbackQueryHandler
 import requests
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 MONGO_URI = os.getenv('MONGO_URI')
