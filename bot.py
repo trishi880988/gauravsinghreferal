@@ -25,6 +25,7 @@ db = client.referral_bot
 users_collection = db.users
 
 def is_user_joined(user_id):
+    """Check if user is a member of all required channels."""
     for channel_id in CHANNELS:
         url = f"https://api.telegram.org/bot{TOKEN}/getChatMember?chat_id={channel_id}&user_id={user_id}"
         response = requests.get(url).json()
@@ -32,7 +33,8 @@ def is_user_joined(user_id):
             return False
     return True
 
-def add_user(user_id, referer_id=None):
+def add_user(user_id, referer_id=None, context=None):
+    """Add user to the database and update referral count if applicable."""
     user = users_collection.find_one({"user_id": user_id})
     if not user:
         users_collection.insert_one({
@@ -41,8 +43,11 @@ def add_user(user_id, referer_id=None):
             "referral_count": 0,
             "referred_users": []
         })
+        if referer_id and context:
+            update_referral_count(referer_id, user_id, context)
 
 def update_referral_count(referer_id, new_user_id, context):
+    """Increase referral count and notify the referrer."""
     referer = users_collection.find_one({"user_id": referer_id})
     if referer and new_user_id not in referer.get("referred_users", []):
         new_count = referer['referral_count'] + 1
@@ -58,15 +63,24 @@ def update_referral_count(referer_id, new_user_id, context):
                                      reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Join Premium", url=PREMIUM_LINK)]]))
 
 def get_referral_count(user_id):
+    """Get the number of successful referrals for a user."""
     user = users_collection.find_one({"user_id": user_id})
     return user.get("referral_count", 0) if user else 0
 
 def create_progress_bar(count, total=10):
+    """Generate a progress bar for referral tracking."""
     return "🟩" * count + "⬜" * (total - count)
 
 async def start(update: Update, context: CallbackContext):
+    """Handle the /start command."""
     user = update.message.from_user
     user_id = user.id
+
+    # Check if the user joined via a referral link
+    args = context.args
+    referer_id = int(args[0]) if args else None
+    if referer_id == user_id:
+        referer_id = None  # Prevent self-referral
 
     if not is_user_joined(user_id):
         keyboard = [[InlineKeyboardButton(f"📌 Join Channel {i+1}", url=f"https://t.me/{str(CHANNELS[i])}") for i in range(len(CHANNELS))],
@@ -74,12 +88,15 @@ async def start(update: Update, context: CallbackContext):
         await update.message.reply_text("⚠️ Please join the following channels to use the bot:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
+    # Add user and track referral if applicable
+    add_user(user_id, referer_id, context)
+
     await show_referral_message(update, context)
 
 async def show_referral_message(update: Update, context: CallbackContext):
+    """Show the referral message with progress tracking."""
     user = update.message.from_user
     user_id = user.id
-    add_user(user_id)
     
     referral_count = get_referral_count(user_id)
     referral_link = f"https://t.me/{context.bot.username}?start={user_id}"
@@ -100,6 +117,7 @@ async def show_referral_message(update: Update, context: CallbackContext):
     await update.message.reply_photo(photo=image_url, caption=message, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
 async def button_click(update: Update, context: CallbackContext):
+    """Handle button clicks in the bot."""
     query = update.callback_query
     user_id = query.from_user.id
     
@@ -120,6 +138,7 @@ async def button_click(update: Update, context: CallbackContext):
             await query.message.reply_text(f"📊 Your Progress: {progress_bar} ({referral_count}/10)", parse_mode="Markdown")
 
 def main():
+    """Start the Telegram bot."""
     application = ApplicationBuilder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_click))
